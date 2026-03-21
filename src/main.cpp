@@ -4,6 +4,7 @@
 #include <WebServer.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include "credentials.h"
 
 // ============================================================
 //  SMART CLASSROOM ENERGY MANAGEMENT SYSTEM
@@ -14,8 +15,7 @@
 // --- WiFi Credentials ---
 // const char* WIFI_SSID     = "Phone_1_5172";
 // const char* WIFI_PASSWORD = "ravi123#";
-const char* WIFI_SSID     = "thiruvathira";
-const char* WIFI_PASSWORD = "santhosh4970";
+
 
 // --- Web Server ---
 WebServer server(80);
