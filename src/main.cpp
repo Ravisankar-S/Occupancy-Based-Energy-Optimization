@@ -12,10 +12,6 @@
 //  Web dashboard with manual override
 // ============================================================
 
-// --- WiFi Credentials ---
-// const char* WIFI_SSID     = "Phone_1_5172";
-// const char* WIFI_PASSWORD = "ravi123#";
-
 
 // --- Web Server ---
 WebServer server(80);
