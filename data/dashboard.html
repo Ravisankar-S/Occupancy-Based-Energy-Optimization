@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Classroom Energy Management</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0e17;
+    --surface:  #111827;
+    --border:   #1f2d40;
+    --accent:   #00d4ff;
+    --green:    #00ff88;
+    --orange:   #ff9500;
+    --red:      #ff3b3b;
+    --yellow:   #ffd60a;
+    --text:     #e2e8f0;
+    --muted:    #4a5568;
+    --font-ui:  'Syne', sans-serif;
+    --font-mono:'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    padding: 24px;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(0,212,255,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(0,255,136,0.04) 0%, transparent 60%);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  .header-left p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    margin-top: 2px;
+  }
+
+  .uptime {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+
+  .uptime span { color: var(--accent); }
+
+  /* Status bar */
+  .status-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent-color, var(--accent));
+    opacity: 0.6;
+  }
+
+  .stat-card .label {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-card .value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--accent-color, var(--accent));
+  }
+
+  .stat-card .sub {
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* Mode indicator */
+  .mode-off    { --accent-color: var(--muted); }
+  .mode-low    { --accent-color: var(--yellow); }
+  .mode-med    { --accent-color: var(--orange); }
+  .mode-high   { --accent-color: var(--green); }
+  .motion-yes  { --accent-color: var(--green); }
+  .motion-no   { --accent-color: var(--muted); }
+
+  /* LED indicators */
+  .led-strip {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .led {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .led.on-yellow { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); }
+  .led.on-orange { background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+  .led.on-green  { background: var(--green);  box-shadow: 0 0 10px var(--green); }
+
+  /* Main grid */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-header h2 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .panel-body { padding: 20px; }
+
+  /* Override buttons */
+  .mode-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .mode-btn {
+    padding: 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .mode-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .mode-btn.btn-off:hover   { border-color: var(--muted); color: var(--muted); }
+  .mode-btn.btn-low:hover   { border-color: var(--yellow); color: var(--yellow); }
+  .mode-btn.btn-med:hover   { border-color: var(--orange); color: var(--orange); }
+  .mode-btn.btn-high:hover  { border-color: var(--green);  color: var(--green); }
+
+  /* Control buttons */
+  .ctrl-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .ctrl-btn {
+    padding: 11px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .ctrl-btn:hover { opacity: 0.85; }
+
+  .btn-danger   { border-color: var(--red);    color: var(--red); }
+  .btn-danger:hover { background: var(--red); color: #fff; }
+
+  .btn-warn     { border-color: var(--orange); color: var(--orange); }
+  .btn-warn:hover { background: var(--orange); color: #fff; }
+
+  .btn-info     { border-color: var(--accent); color: var(--accent); }
+  .btn-info:hover { background: var(--accent); color: #000; }
+
+  .btn-success  { border-color: var(--green);  color: var(--green); }
+  .btn-success:hover { background: var(--green); color: #000; }
+
+  .ctrl-btn.active-state {
+    background: rgba(255, 59, 59, 0.15);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* Override badge */
+  .override-badge {
+    display: none;
+    background: rgba(255, 149, 0, 0.15);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+
+  .override-badge.visible { display: block; }
+
+  /* Log */
+  .log-container {
+    max-height: 320px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(31,45,64,0.5);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  .log-time {
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 64px;
+  }
+
+  .log-msg { color: var(--text); }
+  .log-msg.entry  { color: var(--green); }
+  .log-msg.exit   { color: var(--red); }
+  .log-msg.pir    { color: var(--accent); }
+  .log-msg.mode   { color: var(--yellow); }
+  .log-msg.system { color: var(--orange); }
+
+  .log-empty {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  /* Separator */
+  .section-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  .section-label {
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* Connection indicator */
+  .conn-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  .conn-dot.offline { background: var(--red); animation: none; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .clear-log-btn {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+  }
+  .clear-log-btn:hover { color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>⚡ Classroom Energy Management</h1>
+    <p><span class="conn-dot" id="connDot"></span><span id="connLabel">Connecting...</span></p>
+  </div>
+  <div class="uptime">Uptime: <span id="uptime">--:--:--</span></div>
+</header>
+
+<!-- Status Cards -->
+<div class="status-bar">
+
+  <div class="stat-card" id="cardOcc">
+    <div class="label">Occupancy</div>
+    <div class="value" id="statOcc">—</div>
+    <div class="sub">people detected</div>
+  </div>
+
+  <div class="stat-card" id="cardMode">
+    <div class="label">Power Mode</div>
+    <div class="value" id="statMode">—</div>
+    <div class="sub">
+      <div class="led-strip">
+        <div class="led" id="ledLow"  title="LOW"></div>
+        <div class="led" id="ledMed"  title="MED"></div>
+        <div class="led" id="ledHigh" title="HIGH"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card" id="cardMotion">
+    <div class="label">Motion</div>
+    <div class="value" id="statMotion">—</div>
+    <div class="sub" id="motionSub">PIR sensor</div>
+  </div>
+
+  <div class="stat-card" id="cardOverride">
+    <div class="label">Control</div>
+    <div class="value" id="statControl" style="font-size:1.1rem; padding-top:6px;">AUTO</div>
+    <div class="sub" id="controlSub">system managed</div>
+  </div>
+
+</div>
+
+<!-- Main Grid -->
+<div class="main-grid">
+
+  <!-- Controls Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Manual Controls</h2>
+    </div>
+    <div class="panel-body">
+
+      <div class="override-badge" id="overrideBadge">
+        ⚠ OVERRIDE ACTIVE — auto mode suspended
+      </div>
+
+      <div class="section-label">Force Power Mode</div>
+      <div class="mode-buttons">
+        <button class="mode-btn btn-off"  onclick="setOverride(0)">OFF</button>
+        <button class="mode-btn btn-low"  onclick="setOverride(1)">LOW</button>
+        <button class="mode-btn btn-med"  onclick="setOverride(2)">MED</button>
+        <button class="mode-btn btn-high" onclick="setOverride(3)">HIGH</button>
+      </div>
+
+      <div class="section-sep"></div>
+      <div class="section-label">System Controls</div>
+      <div class="ctrl-grid">
+
+        <button class="ctrl-btn btn-info" id="btnClearOverride" onclick="clearOverride()">
+          ↩ Clear Override
+        </button>
+
+        <button class="ctrl-btn btn-warn" id="btnPIR" onclick="togglePIR()">
+          PIR: Enable
+        </button>
+
+        <button class="ctrl-btn btn-danger" onclick="resetOcc()">
+          Reset Occupancy
+        </button>
+
+        <button class="ctrl-btn btn-success" id="btnSystem" onclick="toggleSystem()">
+          System: ON
+        </button>
+
+        <button class="ctrl-btn btn-danger full-width" onclick="fullReset()">
+          ⚠ Full System Reset
+        </button>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Event Log</h2>
+      <button class="clear-log-btn" onclick="clearLocalLog()">clear</button>
+    </div>
+    <div class="panel-body" style="padding: 0 20px 16px;">
+      <div class="log-container" id="logContainer">
+        <div class="log-empty">No events yet</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────
+  // Change this to your ESP32's IP address shown on the LCD
+  const ESP_IP = window.location.hostname;
+  const BASE   = `http://${ESP_IP}`;
+  const POLL_MS = 1000;
+
+  let localLog    = [];
+  let lastMode    = null;
+  let pirDisabled = false;
+  let systemOff   = false;
+
+  // ── Fetch helpers ────────────────────────────────────────
+  async function get(path) {
+    const r = await fetch(BASE + path);
+    return r.json();
+  }
+
+  async function post(path) {
+    return fetch(BASE + path, { method: "POST" });
+  }
+
+  // ── Polling ──────────────────────────────────────────────
+  async function poll() {
+    try {
+      const [status, logData] = await Promise.all([
+        get("/status"),
+        get("/log")
+      ]);
+
+      updateStatus(status);
+      updateLog(logData.log);
+
+      document.getElementById("connDot").className   = "conn-dot";
+      document.getElementById("connLabel").textContent = "Connected — " + ESP_IP;
+
+    } catch (e) {
+      document.getElementById("connDot").className   = "conn-dot offline";
+      document.getElementById("connLabel").textContent = "Disconnected";
+    }
+  }
+
+  // ── Status update ────────────────────────────────────────
+  function updateStatus(s) {
+    // Occupancy
+    document.getElementById("statOcc").textContent = s.occupancy;
+
+    // Mode
+    const modeEl   = document.getElementById("statMode");
+    const cardMode = document.getElementById("cardMode");
+    modeEl.textContent = s.mode;
+    cardMode.className = "stat-card mode-" + s.mode.toLowerCase();
+
+    // LEDs
+    document.getElementById("ledLow").className  = "led " + (s.modeIndex >= 1 ? "on-yellow" : "");
+    document.getElementById("ledMed").className  = "led " + (s.modeIndex >= 2 ? "on-orange" : "");
+    document.getElementById("ledHigh").className = "led " + (s.modeIndex >= 3 ? "on-green"  : "");
+
+    // Motion
+    const motEl  = document.getElementById("statMotion");
+    const motCard = document.getElementById("cardMotion");
+    motEl.textContent = s.pirDisabled ? "OFF" : (s.motion ? "YES" : "NO");
+    motCard.className = "stat-card " + (s.motion && !s.pirDisabled ? "motion-yes" : "motion-no");
+    document.getElementById("motionSub").textContent = s.pirDisabled ? "PIR disabled" : "PIR sensor";
+
+    // Control state
+    pirDisabled = s.pirDisabled;
+    systemOff   = s.systemOff;
+
+    const ctrlVal = document.getElementById("statControl");
+    const ctrlSub = document.getElementById("controlSub");
+    if (s.systemOff) {
+      ctrlVal.textContent = "OFF";
+      ctrlSub.textContent = "manually disabled";
+    } else if (s.overrideActive) {
+      ctrlVal.textContent = "OVERRIDE";
+      ctrlSub.textContent = "mode: " + s.mode;
+    } else {
+      ctrlVal.textContent = "AUTO";
+      ctrlSub.textContent = "system managed";
+    }
+
+    // Override badge
+    document.getElementById("overrideBadge").className =
+      "override-badge" + (s.overrideActive ? " visible" : "");
+
+    // Button states
+    document.getElementById("btnPIR").textContent =
+      "PIR: " + (s.pirDisabled ? "Disabled" : "Enabled");
+    document.getElementById("btnPIR").className =
+      "ctrl-btn " + (s.pirDisabled ? "btn-danger active-state" : "btn-warn");
+
+    document.getElementById("btnSystem").textContent =
+      "System: " + (s.systemOff ? "OFF" : "ON");
+    document.getElementById("btnSystem").className =
+      "ctrl-btn " + (s.systemOff ? "btn-danger active-state" : "btn-success");
+
+    // Uptime
+    document.getElementById("uptime").textContent = s.uptime;
+  }
+
+  // ── Log update ───────────────────────────────────────────
+  function updateLog(entries) {
+    if (!entries || entries.length === 0) return;
+    const container = document.getElementById("logContainer");
+    container.innerHTML = "";
+
+    entries.forEach(e => {
+      const div  = document.createElement("div");
+      div.className = "log-entry";
+
+      const cls = e.msg.includes("ENTRY")    ? "entry"
+                : e.msg.includes("EXIT")     ? "exit"
+                : e.msg.includes("PIR")      ? "pir"
+                : e.msg.includes("Mode") || e.msg.includes("OVERRIDE") ? "mode"
+                : "system";
+
+      div.innerHTML = `
+        <span class="log-time">${e.time}</span>
+        <span class="log-msg ${cls}">${e.msg}</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function clearLocalLog() {
+    document.getElementById("logContainer").innerHTML =
+      '<div class="log-empty">Log cleared locally</div>';
+  }
+
+  // ── Controls ─────────────────────────────────────────────
+  async function setOverride(mode) {
+    await post(`/override?mode=${mode}`);
+    poll();
+  }
+
+  async function clearOverride() {
+    await post("/override/clear");
+    poll();
+  }
+
+  async function togglePIR() {
+    await post("/pir/toggle");
+    poll();
+  }
+
+  async function resetOcc() {
+    if (confirm("Reset occupancy count to 0?")) {
+      await post("/occ/reset");
+      poll();
+    }
+  }
+
+  async function toggleSystem() {
+    await post("/system/toggle");
+    poll();
+  }
+
+  async function fullReset() {
+    if (confirm("Full reset — clears occupancy, overrides, and PIR state?")) {
+      await post("/reset");
+      poll();
+    }
+  }
+
+  // ── Start polling ────────────────────────────────────────
+  poll();
+  setInterval(poll, POLL_MS);
+</script>
+
+</body>
+</html>
