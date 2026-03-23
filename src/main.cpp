@@ -327,8 +327,8 @@ void setup() {
   Serial.println("============================================");
 
   // Pin modes
-  pinMode(IR1_PIN,  INPUT);   // 3-pin IR obstacle sensor has internal pull-up
-  pinMode(IR2_PIN,  INPUT);
+  pinMode(IR1_PIN, INPUT_PULLUP);
+  pinMode(IR2_PIN, INPUT_PULLUP);
   pinMode(PIR_PIN,  INPUT_PULLDOWN);
   pinMode(LED_LOW,  OUTPUT);
   pinMode(LED_MED,  OUTPUT);
