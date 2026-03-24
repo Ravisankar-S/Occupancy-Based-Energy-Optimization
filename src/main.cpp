@@ -36,7 +36,6 @@ const int THRESH_HIGH = 5;   // occupancy at which HIGH mode activates
 // --- Timing Constants ---
 const int           DEBOUNCE_MS   = 200;
 const unsigned long SEQ_WINDOW_MS = 1200;  // max ms between IR1 and IR2 for valid crossing
-const unsigned long PIR_HOLD_MS   = 5000; // ms to hold LOW mode after last motion when empty
 const unsigned long FLASH_MS      = 1500; // ms to show ENTRY/EXIT message on LCD
 const unsigned long LCD_UPDATE_MS = 200;  // ms between normal LCD refreshes
 const unsigned long WIFI_LCD_MS   = 3000; // ms to show WiFi connected message
@@ -45,7 +44,6 @@ const unsigned long WIFI_LCD_MS   = 3000; // ms to show WiFi connected message
 int           occupancy      = 0;
 int           pendingSensor  = 0;
 unsigned long pendingTime    = 0;
-unsigned long lastMotionTime = 0;
 
 bool lastIR1 = HIGH;
 bool lastIR2 = HIGH;
@@ -55,6 +53,7 @@ bool lastWiFiConnected = false;
 unsigned long lastIR1Trigger = 0;
 unsigned long lastIR2Trigger = 0;
 unsigned long lastLCDUpdate  = 0;
+unsigned long pirHighStart   = 0;
 
 // --- Override & Control State ---
 bool overrideActive = false;
@@ -135,7 +134,8 @@ int calculateMode() {
   if (systemOff)      return 0;
 
   if (occupancy == 0) {
-    return (millis() - lastMotionTime < PIR_HOLD_MS) ? 1 : 0;
+    bool pirNow = !pirDisabled && (bool)digitalRead(PIR_PIN);
+    return pirNow ? 1 : 0;
   }
   if (occupancy <= THRESH_MED)  return 1;
   if (occupancy <= THRESH_HIGH) return 2;
@@ -329,7 +329,6 @@ void handleFullReset() {
   overrideMode   = -1;
   pirDisabled    = false;
   systemOff      = false;
-  lastMotionTime = 0;
   addLog("FULL SYSTEM RESET — all values cleared");
   server.send(200, "text/plain", "OK");
 }
@@ -442,8 +441,19 @@ void loop() {
 
   // --- PIR Sensor ---
   if (!pirDisabled && lastPIR == LOW && pir == HIGH) {
-    lastMotionTime = millis();
     addLog("PIR motion detected");
+    pirHighStart = millis();
+    Serial.print("[DIAG][PIR] HIGH started at ");
+    Serial.print(pirHighStart);
+    Serial.println(" ms");
+  }
+
+  if (lastPIR == HIGH && pir == LOW) {
+    unsigned long pirHighMs = (pirHighStart > 0) ? (millis() - pirHighStart) : 0;
+    Serial.print("[DIAG][PIR] HIGH ended. Pulse duration: ");
+    Serial.print(pirHighMs);
+    Serial.println(" ms");
+    pirHighStart = 0;
   }
 
   // --- Reset incomplete IR sequence ---
