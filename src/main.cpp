@@ -20,8 +20,8 @@ WebServer server(80);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // --- Pin Definitions ---
-const int IR1_PIN  = 32;   // IR obstacle sensor 1 (outside, entry side)
-const int IR2_PIN  = 33;   // IR obstacle sensor 2 (inside, exit side)
+const int IR1_PIN  = 4;   // IR obstacle sensor 1 (outside, entry side)
+const int IR2_PIN  = 5;   // IR obstacle sensor 2 (inside, exit side)
 const int PIR_PIN  = 27;   // PIR motion sensor
 
 const int LED_LOW  = 25;
