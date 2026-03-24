@@ -350,6 +350,7 @@
   .log-msg.exit   { color: var(--red); }
   .log-msg.pir    { color: var(--accent); }
   .log-msg.mode   { color: var(--yellow); }
+  .log-msg.alert  { color: #ff6b6b; }
   .log-msg.system { color: var(--orange); }
 
   .log-empty {
@@ -428,6 +429,124 @@
   .made-with .ravi-link:hover {
     color: #7de9ff;
     text-shadow: 0 0 10px rgba(0, 212, 255, 0.45);
+  }
+
+  /* Anomaly modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 14, 23, 0.72);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+  }
+
+  .modal-overlay.visible {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-card {
+    width: min(560px, 100%);
+    background: linear-gradient(180deg, rgba(255, 59, 59, 0.08), rgba(17, 24, 39, 0.96));
+    border: 1px solid rgba(255, 59, 59, 0.45);
+    border-radius: 14px;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 59, 59, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .modal-title {
+    color: #ffdede;
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: 0.01em;
+  }
+
+  .modal-time {
+    color: #ffb6b6;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .modal-body {
+    padding: 16px;
+  }
+
+  .modal-body p {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--font-ui);
+    line-height: 1.45;
+    font-size: 0.95rem;
+  }
+
+  .modal-actions {
+    padding: 0 16px 16px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .modal-ack-btn {
+    min-width: 140px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid #ff6b6b;
+    background: rgba(255, 59, 59, 0.14);
+    color: #ffdede;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .modal-ack-btn:hover {
+    background: rgba(255, 59, 59, 0.24);
+    transform: translateY(-1px);
+  }
+
+  .modal-ack-btn:focus-visible {
+    outline: 2px solid #ff8e8e;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 480px) {
+    .modal-header,
+    .modal-body,
+    .modal-actions {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .modal-title {
+      font-size: 0.93rem;
+    }
+
+    .modal-body p {
+      font-size: 0.9rem;
+    }
+
+    .modal-actions {
+      justify-content: stretch;
+    }
+
+    .modal-ack-btn {
+      width: 100%;
+    }
   }
 </style>
 </head>
@@ -560,6 +679,21 @@
   <a class="ravi-link" href="https://www.linkedin.com/in/ravisankar-cs/" target="_blank" rel="noopener noreferrer">Ravi</a>
 </div>
 
+<div class="modal-overlay" id="anomalyModal" role="dialog" aria-modal="true" aria-labelledby="anomalyTitle" aria-describedby="anomalyText">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title" id="anomalyTitle">Warning: Occupancy Anomaly</div>
+      <div class="modal-time" id="anomalyTime">--:--:--</div>
+    </div>
+    <div class="modal-body">
+      <p id="anomalyText">Motion detected with zero occupancy. Verify sensor placement, entry/exit count, and room access status.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-ack-btn" id="btnAcknowledgeAnomaly" onclick="acknowledgeAnomaly()">Acknowledge</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── Config ──────────────────────────────────────────────
   // Change this to your ESP32's IP address shown on the LCD
@@ -571,6 +705,8 @@
   let lastMode    = null;
   let pirDisabled = false;
   let systemOff   = false;
+  let activeAnomalyKey = null;
+  const acknowledgedAnomalies = new Set();
 
   // ── Fetch helpers ────────────────────────────────────────
   async function get(path) {
@@ -696,6 +832,8 @@
     const container = document.getElementById("logContainer");
     container.innerHTML = "";
 
+    let newAnomaly = null;
+
     entries.forEach(e => {
       const div  = document.createElement("div");
       div.className = "log-entry";
@@ -703,8 +841,16 @@
       const cls = e.msg.includes("ENTRY")    ? "entry"
                 : e.msg.includes("EXIT")     ? "exit"
                 : e.msg.includes("PIR")      ? "pir"
+                : e.msg.includes("ALERT: Motion detected with zero occupancy") ? "alert"
                 : e.msg.includes("Mode") || e.msg.includes("OVERRIDE") ? "mode"
                 : "system";
+
+      if (!newAnomaly && isAnomalyAlertMessage(e.msg)) {
+        const anomalyKey = `${e.time}|${e.msg}`;
+        if (activeAnomalyKey !== anomalyKey && !acknowledgedAnomalies.has(anomalyKey)) {
+          newAnomaly = { ...e, key: anomalyKey };
+        }
+      }
 
       div.innerHTML = `
         <span class="log-time">${e.time}</span>
@@ -712,7 +858,41 @@
       `;
       container.appendChild(div);
     });
+
+    if (newAnomaly && !isAnomalyModalOpen()) {
+      showAnomalyModal(newAnomaly);
+    }
   }
+
+  function isAnomalyAlertMessage(msg) {
+    return msg.includes("ALERT: Motion detected with zero occupancy");
+  }
+
+  function isAnomalyModalOpen() {
+    return document.getElementById("anomalyModal").classList.contains("visible");
+  }
+
+  function showAnomalyModal(entry) {
+    activeAnomalyKey = entry.key;
+    document.getElementById("anomalyTime").textContent = entry.time;
+    document.getElementById("anomalyText").textContent = entry.msg;
+    document.getElementById("anomalyModal").classList.add("visible");
+    document.getElementById("btnAcknowledgeAnomaly").focus();
+  }
+
+  function acknowledgeAnomaly() {
+    if (activeAnomalyKey) {
+      acknowledgedAnomalies.add(activeAnomalyKey);
+      activeAnomalyKey = null;
+    }
+    document.getElementById("anomalyModal").classList.remove("visible");
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && isAnomalyModalOpen()) {
+      acknowledgeAnomaly();
+    }
+  });
 
   function clearLocalLog() {
     document.getElementById("logContainer").innerHTML =

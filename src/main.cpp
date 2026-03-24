@@ -441,7 +441,11 @@ void loop() {
 
   // --- PIR Sensor ---
   if (!pirDisabled && lastPIR == LOW && pir == HIGH) {
-    addLog("PIR motion detected");
+    if (occupancy == 0) {
+      addLog("ALERT: Motion detected with zero occupancy - possible miscounting or unauthorized entry");
+    } else {
+      addLog("PIR motion detected");
+    }
     pirHighStart = millis();
     Serial.print("[DIAG][PIR] HIGH started at ");
     Serial.print(pirHighStart);
