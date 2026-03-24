@@ -39,6 +39,7 @@ const unsigned long SEQ_WINDOW_MS = 1200;  // max ms between IR1 and IR2 for val
 const unsigned long PIR_HOLD_MS   = 5000; // ms to hold LOW mode after last motion when empty
 const unsigned long FLASH_MS      = 1500; // ms to show ENTRY/EXIT message on LCD
 const unsigned long LCD_UPDATE_MS = 200;  // ms between normal LCD refreshes
+const unsigned long WIFI_LCD_MS   = 3000; // ms to show WiFi connected message
 
 // --- Occupancy & Sensor State ---
 int           occupancy      = 0;
@@ -49,6 +50,7 @@ unsigned long lastMotionTime = 0;
 bool lastIR1 = HIGH;
 bool lastIR2 = HIGH;
 bool lastPIR = LOW;
+bool lastWiFiConnected = false;
 
 unsigned long lastIR1Trigger = 0;
 unsigned long lastIR2Trigger = 0;
@@ -145,6 +147,7 @@ int calculateMode() {
 // ============================================================
 
 String padTo16(String s) {
+  if (s.length() > 16) s = s.substring(0, 16);
   while (s.length() < 16) s += " ";
   return s;
 }
@@ -154,6 +157,21 @@ void triggerFlash(String line1, String line2) {
   flashLine2  = padTo16(line2);
   flashActive = true;
   flashStart  = millis();
+}
+
+void monitorWiFiConnection() {
+  bool connected = (WiFi.status() == WL_CONNECTED);
+
+  if (!lastWiFiConnected && connected) {
+    String ip = WiFi.localIP().toString();
+    addLog("WiFi connected | IP: " + ip);
+    triggerFlash("WiFi Connected!", "IP: " + ip);
+    flashStart = millis() - FLASH_MS + WIFI_LCD_MS;
+  } else if (lastWiFiConnected && !connected) {
+    addLog("WiFi disconnected");
+  }
+
+  lastWiFiConnected = connected;
 }
 
 void updateLCD(int mode, bool pirState) {
@@ -337,7 +355,7 @@ void setup() {
   // LCD boot message
   lcd.init();
   lcd.backlight();
-  lcd.setCursor(0, 0); lcd.print("  Smart Class   ");
+  lcd.setCursor(0, 0); lcd.print("  Smart System   ");
   lcd.setCursor(0, 1); lcd.print(" Connecting...  ");
 
   // Mount SPIFFS
@@ -364,6 +382,7 @@ void setup() {
     lcd.setCursor(0, 0); lcd.print("WiFi Connected! ");
     lcd.setCursor(0, 1); lcd.print(ip);
     addLog("System started | IP: " + ip);
+    lastWiFiConnected = true;
     delay(3000);   // show IP on LCD long enough to read and note down
   } else {
     Serial.println("\n[WIFI] Failed — running in standalone mode");
@@ -371,6 +390,7 @@ void setup() {
     lcd.setCursor(0, 0); lcd.print("  WiFi FAILED   ");
     lcd.setCursor(0, 1); lcd.print("Standalone mode ");
     addLog("System started — no WiFi");
+    lastWiFiConnected = false;
     delay(2000);
   }
 
@@ -400,6 +420,9 @@ void loop() {
 
   // Handle web server requests
   server.handleClient();
+
+  // Show WiFi connection/IP whenever network becomes available later.
+  monitorWiFiConnection();
 
   bool ir1 = digitalRead(IR1_PIN);
   bool ir2 = digitalRead(IR2_PIN);

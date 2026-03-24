@@ -154,9 +154,9 @@
 
   /* Mode indicator */
   .mode-off    { --accent-color: var(--muted); }
-  .mode-low    { --accent-color: var(--yellow); }
+  .mode-low    { --accent-color: var(--green); }
   .mode-med    { --accent-color: var(--orange); }
-  .mode-high   { --accent-color: var(--green); }
+  .mode-high   { --accent-color: var(--red); }
   .motion-yes  { --accent-color: var(--green); }
   .motion-no   { --accent-color: var(--muted); }
 
@@ -175,6 +175,7 @@
   .led.on-yellow { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); }
   .led.on-orange { background: var(--orange); box-shadow: 0 0 10px var(--orange); }
   .led.on-green  { background: var(--green);  box-shadow: 0 0 10px var(--green); }
+  .led.on-red    { background: var(--red);    box-shadow: 0 0 10px var(--red); }
 
   /* Main grid */
   .main-grid {
@@ -239,9 +240,25 @@
   .mode-btn:hover { border-color: var(--accent); color: var(--accent); }
   .mode-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
   .mode-btn.btn-off:hover   { border-color: var(--muted); color: var(--muted); }
-  .mode-btn.btn-low:hover   { border-color: var(--yellow); color: var(--yellow); }
+  .mode-btn.btn-low:hover   { border-color: var(--green); color: var(--green); }
   .mode-btn.btn-med:hover   { border-color: var(--orange); color: var(--orange); }
-  .mode-btn.btn-high:hover  { border-color: var(--green);  color: var(--green); }
+  .mode-btn.btn-high:hover  { border-color: var(--red);    color: var(--red); }
+
+  .mode-btn.btn-off.active  { background: var(--muted);  border-color: var(--muted);  color: #0a0e17; }
+  .mode-btn.btn-low.active  { background: var(--green);  border-color: var(--green);  color: #0a0e17; }
+  .mode-btn.btn-med.active  { background: var(--orange); border-color: var(--orange); color: #0a0e17; }
+  .mode-btn.btn-high.active { background: var(--red);    border-color: var(--red);    color: #fff; }
+
+  .mode-btn:disabled,
+  .ctrl-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .mode-btn.active:disabled {
+    opacity: 1;
+  }
 
   /* Control buttons */
   .ctrl-grid {
@@ -489,33 +506,33 @@
 
       <div class="section-label">Force Power Mode</div>
       <div class="mode-buttons">
-        <button class="mode-btn btn-off"  onclick="setOverride(0)">OFF</button>
-        <button class="mode-btn btn-low"  onclick="setOverride(1)">LOW</button>
-        <button class="mode-btn btn-med"  onclick="setOverride(2)">MED</button>
-        <button class="mode-btn btn-high" onclick="setOverride(3)">HIGH</button>
+        <button class="mode-btn btn-off" id="btnModeOff"  onclick="setOverride(0)" title="Set power mode to OFF">OFF</button>
+        <button class="mode-btn btn-low" id="btnModeLow"  onclick="setOverride(1)" title="Set power mode to LOW">LOW</button>
+        <button class="mode-btn btn-med" id="btnModeMed"  onclick="setOverride(2)" title="Set power mode to MED">MED</button>
+        <button class="mode-btn btn-high" id="btnModeHigh" onclick="setOverride(3)" title="Set power mode to HIGH">HIGH</button>
       </div>
 
       <div class="section-sep"></div>
       <div class="section-label">System Controls</div>
       <div class="ctrl-grid">
 
-        <button class="ctrl-btn btn-info" id="btnClearOverride" onclick="clearOverride()">
+        <button class="ctrl-btn btn-info" id="btnClearOverride" onclick="clearOverride()" title="Clear active override">
           ↩ Clear Override
         </button>
 
-        <button class="ctrl-btn btn-warn" id="btnPIR" onclick="togglePIR()">
+        <button class="ctrl-btn btn-warn" id="btnPIR" onclick="togglePIR()" title="Toggle PIR sensor state">
           PIR: Enable
         </button>
 
-        <button class="ctrl-btn btn-danger" onclick="resetOcc()">
+        <button class="ctrl-btn btn-danger" id="btnResetOcc" onclick="resetOcc()" title="Reset occupancy count to zero">
           Reset Occupancy
         </button>
 
-        <button class="ctrl-btn btn-success" id="btnSystem" onclick="toggleSystem()">
+        <button class="ctrl-btn btn-success" id="btnSystem" onclick="toggleSystem()" title="Toggle system ON or OFF">
           System: ON
         </button>
 
-        <button class="ctrl-btn btn-danger full-width" onclick="fullReset()">
+        <button class="ctrl-btn btn-danger full-width" id="btnFullReset" onclick="fullReset()" title="Perform full system reset">
           ⚠ Full System Reset
         </button>
 
@@ -597,9 +614,9 @@
     cardMode.className = "stat-card mode-" + s.mode.toLowerCase();
 
     // LEDs
-    document.getElementById("ledLow").className  = "led " + (s.modeIndex >= 1 ? "on-yellow" : "");
+    document.getElementById("ledLow").className  = "led " + (s.modeIndex >= 1 ? "on-green" : "");
     document.getElementById("ledMed").className  = "led " + (s.modeIndex >= 2 ? "on-orange" : "");
-    document.getElementById("ledHigh").className = "led " + (s.modeIndex >= 3 ? "on-green"  : "");
+    document.getElementById("ledHigh").className = "led " + (s.modeIndex >= 3 ? "on-red"    : "");
 
     // Motion
     const motEl  = document.getElementById("statMotion");
@@ -629,6 +646,8 @@
     document.getElementById("overrideBadge").className =
       "override-badge" + (s.overrideActive ? " visible" : "");
 
+    updateOverrideControls(s);
+
     // Button states
     document.getElementById("btnPIR").textContent =
       "PIR: " + (s.pirDisabled ? "Disabled" : "Enabled");
@@ -642,6 +661,33 @@
 
     // Uptime
     document.getElementById("uptime").textContent = s.uptime;
+  }
+
+  function updateOverrideControls(s) {
+    const modeButtons = [
+      document.getElementById("btnModeOff"),
+      document.getElementById("btnModeLow"),
+      document.getElementById("btnModeMed"),
+      document.getElementById("btnModeHigh")
+    ];
+
+    modeButtons.forEach((btn, idx) => {
+      btn.classList.toggle("active", s.overrideActive && s.modeIndex === idx);
+      btn.disabled = false;
+      btn.title = `Set power mode to ${btn.textContent.trim()}`;
+    });
+
+    const btnClearOverride = document.getElementById("btnClearOverride");
+    btnClearOverride.disabled = !s.overrideActive;
+    btnClearOverride.title = s.overrideActive
+      ? "Clear the current override and return to AUTO"
+      : "No override active";
+
+    document.querySelectorAll(".ctrl-grid .ctrl-btn").forEach(btn => {
+      if (btn.id !== "btnClearOverride") {
+        btn.disabled = false;
+      }
+    });
   }
 
   // ── Log update ───────────────────────────────────────────
