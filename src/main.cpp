@@ -38,6 +38,7 @@ const int           DEBOUNCE_MS   = 200;
 const unsigned long SEQ_WINDOW_MS = 1200;  // max ms between IR1 and IR2 for valid crossing
 const unsigned long FLASH_MS      = 1500; // ms to show ENTRY/EXIT message on LCD
 const unsigned long ALERT_LCD_MS  = 5000; // ms to show untracked presence alert on LCD
+const unsigned long ALERT_ARM_MS  = 10000; // startup grace period before anomaly alerts are enabled
 const unsigned long LCD_UPDATE_MS = 200;  // ms between normal LCD refreshes
 const unsigned long WIFI_LCD_MS   = 3000; // ms to show WiFi connected message
 
@@ -55,6 +56,7 @@ unsigned long lastIR1Trigger = 0;
 unsigned long lastIR2Trigger = 0;
 unsigned long lastLCDUpdate  = 0;
 unsigned long pirHighStart   = 0;
+unsigned long alertArmStart  = 0;
 
 // --- Override & Control State ---
 bool overrideActive = false;
@@ -331,6 +333,7 @@ void handleFullReset() {
   overrideMode   = -1;
   pirDisabled    = false;
   systemOff      = false;
+  alertArmStart  = millis();
   addLog("FULL SYSTEM RESET — all values cleared");
   server.send(200, "text/plain", "OK");
 }
@@ -443,7 +446,8 @@ void loop() {
 
   // --- PIR Sensor ---
   if (!pirDisabled && lastPIR == LOW && pir == HIGH) {
-    if (occupancy == 0) {
+    bool alertArmed = (millis() - alertArmStart) >= ALERT_ARM_MS;
+    if (occupancy == 0 && alertArmed) {
       addLog("ALERT: Motion detected with zero occupancy - possible miscounting or unauthorized entry");
       triggerFlash("!! UNTRACKED !!", "Presence Alert!", ALERT_LCD_MS);
     } else {
