@@ -37,6 +37,7 @@ const int THRESH_HIGH = 5;   // occupancy at which HIGH mode activates
 const int           DEBOUNCE_MS   = 200;
 const unsigned long SEQ_WINDOW_MS = 1200;  // max ms between IR1 and IR2 for valid crossing
 const unsigned long FLASH_MS      = 1500; // ms to show ENTRY/EXIT message on LCD
+const unsigned long ALERT_LCD_MS  = 5000; // ms to show untracked presence alert on LCD
 const unsigned long LCD_UPDATE_MS = 200;  // ms between normal LCD refreshes
 const unsigned long WIFI_LCD_MS   = 3000; // ms to show WiFi connected message
 
@@ -64,6 +65,7 @@ bool systemOff      = false;
 // --- LCD Flash State ---
 bool          flashActive = false;
 unsigned long flashStart  = 0;
+unsigned long flashDuration = FLASH_MS;
 String        flashLine1  = "";
 String        flashLine2  = "";
 
@@ -152,11 +154,12 @@ String padTo16(String s) {
   return s;
 }
 
-void triggerFlash(String line1, String line2) {
+void triggerFlash(String line1, String line2, unsigned long durationMs = FLASH_MS) {
   flashLine1  = padTo16(line1);
   flashLine2  = padTo16(line2);
   flashActive = true;
   flashStart  = millis();
+  flashDuration = durationMs;
 }
 
 void monitorWiFiConnection() {
@@ -165,8 +168,7 @@ void monitorWiFiConnection() {
   if (!lastWiFiConnected && connected) {
     String ip = WiFi.localIP().toString();
     addLog("WiFi connected | IP: " + ip);
-    triggerFlash("WiFi Connected!", "IP: " + ip);
-    flashStart = millis() - FLASH_MS + WIFI_LCD_MS;
+    triggerFlash("WiFi Connected!", "IP: " + ip, WIFI_LCD_MS);
   } else if (lastWiFiConnected && !connected) {
     addLog("WiFi disconnected");
   }
@@ -178,7 +180,7 @@ void updateLCD(int mode, bool pirState) {
 
   // Flash screen for ENTRY / EXIT
   if (flashActive) {
-    if (millis() - flashStart < FLASH_MS) {
+    if (millis() - flashStart < flashDuration) {
       lcd.setCursor(0, 0); lcd.print(flashLine1);
       lcd.setCursor(0, 1); lcd.print(flashLine2);
       return;
@@ -443,6 +445,7 @@ void loop() {
   if (!pirDisabled && lastPIR == LOW && pir == HIGH) {
     if (occupancy == 0) {
       addLog("ALERT: Motion detected with zero occupancy - possible miscounting or unauthorized entry");
+      triggerFlash("!! UNTRACKED !!", "Presence Alert!", ALERT_LCD_MS);
     } else {
       addLog("PIR motion detected");
     }
