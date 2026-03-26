@@ -29,9 +29,11 @@ const int LED_MED  = 26;
 const int LED_HIGH = 18;
 
 // --- Deployment Configuration ---
-// Adjust these thresholds before flashing for each classroom
-const int THRESH_MED  = 3;   // occupancy at which MED mode activates
-const int THRESH_HIGH = 5;   // occupancy at which HIGH mode activates
+// Runtime-configurable occupancy thresholds for LOW/MED/HIGH modes.
+// Rules: thresholdLow >= 1, thresholdMed > thresholdLow, thresholdHigh > thresholdMed.
+int thresholdLow  = 1;
+int thresholdMed  = 3;
+int thresholdHigh = 5;
 
 // --- Timing Constants ---
 const int           DEBOUNCE_MS   = 200;
@@ -141,9 +143,11 @@ int calculateMode() {
     bool pirNow = !pirDisabled && (bool)digitalRead(PIR_PIN);
     return pirNow ? 1 : 0;
   }
-  if (occupancy <= THRESH_MED)  return 1;
-  if (occupancy <= THRESH_HIGH) return 2;
-  return 3;
+
+  if (occupancy >= thresholdHigh) return 3;
+  if (occupancy >= thresholdMed)  return 2;
+  if (occupancy >= thresholdLow)  return 1;
+  return 0;
 }
 
 // ============================================================
@@ -264,6 +268,9 @@ void handleStatus() {
   doc["overrideMode"]   = overrideMode;
   doc["pirDisabled"]    = pirDisabled;
   doc["systemOff"]      = systemOff;
+  doc["thresholdLow"]   = thresholdLow;
+  doc["thresholdMed"]   = thresholdMed;
+  doc["thresholdHigh"]  = thresholdHigh;
   doc["uptime"]         = formatUptime(millis());
 
   String out;
@@ -335,6 +342,31 @@ void handleFullReset() {
   systemOff      = false;
   alertArmStart  = millis();
   addLog("FULL SYSTEM RESET — all values cleared");
+  server.send(200, "text/plain", "OK");
+}
+
+void handleModeThresholdsSet() {
+  if (!server.hasArg("low") || !server.hasArg("med") || !server.hasArg("high")) {
+    server.send(400, "text/plain", "Missing low, med, or high parameter");
+    return;
+  }
+
+  int low  = server.arg("low").toInt();
+  int med  = server.arg("med").toInt();
+  int high = server.arg("high").toInt();
+
+  if (low < 1 || med <= low || high <= med) {
+    server.send(400, "text/plain", "Invalid thresholds. Require low>=1, med>low, high>med");
+    return;
+  }
+
+  thresholdLow  = low;
+  thresholdMed  = med;
+  thresholdHigh = high;
+
+  addLog("Mode thresholds updated | LOW:" + String(thresholdLow) +
+         " MED:" + String(thresholdMed) +
+         " HIGH:" + String(thresholdHigh));
   server.send(200, "text/plain", "OK");
 }
 
@@ -410,6 +442,7 @@ void setup() {
   server.on("/occ/reset",      HTTP_POST, handleOccReset);
   server.on("/system/toggle",  HTTP_POST, handleSystemToggle);
   server.on("/reset",          HTTP_POST, handleFullReset);
+  server.on("/settings/mode-thresholds", HTTP_POST, handleModeThresholdsSet);
 
   server.begin();
   Serial.println("[SERVER] Web server started");

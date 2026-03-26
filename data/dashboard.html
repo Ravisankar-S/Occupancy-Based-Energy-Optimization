@@ -152,6 +152,49 @@
     margin-top: 6px;
   }
 
+  .mode-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .mode-settings-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(17, 24, 39, 0.9);
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .mode-settings-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(0, 212, 255, 0.08);
+  }
+
+  .mode-settings-btn:focus-visible {
+    outline: 2px solid rgba(0, 212, 255, 0.6);
+    outline-offset: 2px;
+  }
+
+  .mode-settings-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+  }
+
+  .mode-thresholds {
+    margin-top: 8px;
+    display: block;
+  }
+
   /* Mode indicator */
   .mode-off    { --accent-color: var(--muted); }
   .mode-low    { --accent-color: var(--green); }
@@ -548,6 +591,154 @@
       width: 100%;
     }
   }
+
+  .settings-modal {
+    width: min(580px, 100%);
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.09), rgba(17, 24, 39, 0.96));
+    border: 1px solid rgba(0, 212, 255, 0.36);
+    border-radius: 14px;
+    box-shadow: 0 18px 46px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+
+  .settings-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.24);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .settings-title {
+    color: #d9f7ff;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+  }
+
+  .settings-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: rgba(17, 24, 39, 0.92);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .settings-close:hover {
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .settings-body {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+
+  .settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .settings-field label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .settings-field input {
+    width: 100%;
+    background: rgba(10, 14, 23, 0.8);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+  }
+
+  .settings-field input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.12);
+  }
+
+  .settings-help {
+    grid-column: 1 / -1;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .settings-error {
+    grid-column: 1 / -1;
+    display: none;
+    border: 1px solid rgba(255, 59, 59, 0.45);
+    background: rgba(255, 59, 59, 0.12);
+    color: #ffd8d8;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 10px;
+  }
+
+  .settings-error.visible {
+    display: block;
+  }
+
+  .settings-actions {
+    padding: 0 16px 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .settings-save {
+    border: 1px solid var(--accent);
+    background: rgba(0, 212, 255, 0.14);
+    color: #d9f7ff;
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 110px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .settings-save:hover {
+    background: rgba(0, 212, 255, 0.24);
+  }
+
+  .settings-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 680px) {
+    .settings-body {
+      grid-template-columns: 1fr;
+    }
+
+    .settings-actions {
+      justify-content: stretch;
+    }
+
+    .settings-save {
+      width: 100%;
+    }
+  }
 </style>
 </head>
 <body>
@@ -584,7 +775,21 @@
   </div>
 
   <div class="stat-card" id="cardMode">
-    <div class="label">Power Mode</div>
+    <div class="label mode-head">
+      <span>Power Mode</span>
+      <button
+        class="mode-settings-btn"
+        id="btnOpenModeSettings"
+        type="button"
+        title="Configure occupancy thresholds"
+        aria-label="Open power mode settings"
+        onclick="openModeSettingsModal()"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M19.14 12.94a7.48 7.48 0 0 0 .05-.94 7.48 7.48 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.84a.5.5 0 0 0-.49.42l-.36 2.54a7.03 7.03 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.48 7.48 0 0 0-.05.94 7.48 7.48 0 0 0 .05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.05.71 1.63.94l.36 2.54a.5.5 0 0 0 .49.42h3.84a.5.5 0 0 0 .49-.42l.36-2.54c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"></path>
+        </svg>
+      </button>
+    </div>
     <div class="value" id="statMode">—</div>
     <div class="sub">
       <div class="led-strip">
@@ -592,6 +797,7 @@
         <div class="led" id="ledMed"  title="MED"></div>
         <div class="led" id="ledHigh" title="HIGH"></div>
       </div>
+      <span class="mode-thresholds" id="modeThresholdInfo">LOW:1 MED:3 HIGH:5</span>
     </div>
   </div>
 
@@ -694,6 +900,36 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modeSettingsModal" role="dialog" aria-modal="true" aria-labelledby="modeSettingsTitle">
+  <div class="settings-modal">
+    <div class="settings-header">
+      <div class="settings-title" id="modeSettingsTitle">Power Mode Thresholds</div>
+      <button type="button" class="settings-close" aria-label="Close settings" onclick="closeModeSettingsModal()">x</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-field">
+        <label for="inputThresholdLow">LOW Starts At</label>
+        <input id="inputThresholdLow" type="number" min="1" step="1" inputmode="numeric">
+      </div>
+      <div class="settings-field">
+        <label for="inputThresholdMed">MED Starts At</label>
+        <input id="inputThresholdMed" type="number" min="2" step="1" inputmode="numeric">
+      </div>
+      <div class="settings-field">
+        <label for="inputThresholdHigh">HIGH Starts At</label>
+        <input id="inputThresholdHigh" type="number" min="3" step="1" inputmode="numeric">
+      </div>
+      <div class="settings-help">
+        Applies when occupancy is above 0. Use increasing values: LOW < MED < HIGH.
+      </div>
+      <div class="settings-error" id="modeSettingsError"></div>
+    </div>
+    <div class="settings-actions">
+      <button class="settings-save" id="btnSaveModeSettings" type="button" onclick="saveModeSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ── Config ──────────────────────────────────────────────
   // Change this to your ESP32's IP address shown on the LCD
@@ -706,6 +942,7 @@
   let pirDisabled = false;
   let systemOff   = false;
   let activeAnomalyKey = null;
+  let latestThresholds = { low: 1, med: 3, high: 5 };
   const acknowledgedAnomalies = new Set();
 
   // ── Fetch helpers ────────────────────────────────────────
@@ -797,6 +1034,15 @@
 
     // Uptime
     document.getElementById("uptime").textContent = s.uptime;
+
+    // Threshold display
+    latestThresholds = {
+      low: Number(s.thresholdLow ?? latestThresholds.low),
+      med: Number(s.thresholdMed ?? latestThresholds.med),
+      high: Number(s.thresholdHigh ?? latestThresholds.high)
+    };
+    document.getElementById("modeThresholdInfo").textContent =
+      `LOW:${latestThresholds.low} MED:${latestThresholds.med} HIGH:${latestThresholds.high}`;
   }
 
   function updateOverrideControls(s) {
@@ -933,6 +1179,75 @@
       poll();
     }
   }
+
+  function openModeSettingsModal() {
+    const modal = document.getElementById("modeSettingsModal");
+    setModeSettingsError("");
+    document.getElementById("inputThresholdLow").value = latestThresholds.low;
+    document.getElementById("inputThresholdMed").value = latestThresholds.med;
+    document.getElementById("inputThresholdHigh").value = latestThresholds.high;
+    modal.classList.add("visible");
+    document.getElementById("inputThresholdLow").focus();
+  }
+
+  function closeModeSettingsModal() {
+    document.getElementById("modeSettingsModal").classList.remove("visible");
+    setModeSettingsError("");
+  }
+
+  function setModeSettingsError(message) {
+    const errorEl = document.getElementById("modeSettingsError");
+    if (!message) {
+      errorEl.textContent = "";
+      errorEl.classList.remove("visible");
+      return;
+    }
+    errorEl.textContent = message;
+    errorEl.classList.add("visible");
+  }
+
+  async function saveModeSettings() {
+    const low = Number(document.getElementById("inputThresholdLow").value);
+    const med = Number(document.getElementById("inputThresholdMed").value);
+    const high = Number(document.getElementById("inputThresholdHigh").value);
+
+    if (!Number.isInteger(low) || !Number.isInteger(med) || !Number.isInteger(high)) {
+      setModeSettingsError("Please enter whole numbers for all three thresholds.");
+      return;
+    }
+
+    if (low < 1 || med <= low || high <= med) {
+      setModeSettingsError("Invalid range. Use LOW >= 1 and LOW < MED < HIGH.");
+      return;
+    }
+
+    const saveBtn = document.getElementById("btnSaveModeSettings");
+    saveBtn.disabled = true;
+    setModeSettingsError("");
+
+    try {
+      const response = await post(`/settings/mode-thresholds?low=${low}&med=${med}&high=${high}`);
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(errText || "Unable to save mode thresholds");
+      }
+
+      latestThresholds = { low, med, high };
+      document.getElementById("modeThresholdInfo").textContent = `LOW:${low} MED:${med} HIGH:${high}`;
+      closeModeSettingsModal();
+      poll();
+    } catch (error) {
+      setModeSettingsError(error.message || "Unable to save settings. Please try again.");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  document.getElementById("modeSettingsModal").addEventListener("click", (event) => {
+    if (event.target.id === "modeSettingsModal") {
+      closeModeSettingsModal();
+    }
+  });
 
   // ── Start polling ────────────────────────────────────────
   poll();
