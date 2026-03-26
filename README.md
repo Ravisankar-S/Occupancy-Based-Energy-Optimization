@@ -278,6 +278,7 @@ http://<ESP32_IP>
 ---
 
 ## Web Dashboard Capabilities
+<img width="1896" height="870" alt="image" src="https://github.com/user-attachments/assets/bfb6a4d7-b58e-4bf4-a9f5-68baaa2fc4e3" />
 
 ### Live Status Cards
 
